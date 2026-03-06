@@ -2473,15 +2473,18 @@ async function init(){
 }
 init();
 
-// ── Global stubs so lobby buttons work immediately before Firebase loads ──
-window.goSolo = function() {
-  document.getElementById('roomLobby').style.display = 'none';
-  const pill = document.getElementById('roomPill');
-  if (pill) { pill.textContent = 'SOLO'; pill.className = 'room-pill solo-pill'; }
-};
-window.createRoom = function() { alert('Still connecting to Firebase. Please wait a moment and try again.'); };
-window.joinRoom   = function() { alert('Still connecting to Firebase. Please wait a moment and try again.'); };
-window.showRoomInfo = function() {};
+// ── Fallback so lobby buttons never throw errors ──
+// These get overwritten by Firebase block below once SDK loads
+if (typeof window.goSolo === 'undefined') {
+  window.goSolo = function() {
+    document.getElementById('roomLobby').style.display = 'none';
+    const pill = document.getElementById('roomPill');
+    if (pill) { pill.textContent = 'SOLO'; pill.className = 'room-pill solo-pill'; }
+  };
+}
+if (typeof window.createRoom === 'undefined') window.createRoom = function() { alert('Still connecting. Please wait a moment and try again.'); };
+if (typeof window.joinRoom === 'undefined') window.joinRoom = function() { alert('Still connecting. Please wait a moment and try again.'); };
+if (typeof window.showRoomInfo === 'undefined') window.showRoomInfo = function() {};
 
 
 Object.keys(FORMATIONS).forEach(f=>{});  // triggers on renderFormation
