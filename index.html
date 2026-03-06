@@ -2473,7 +2473,17 @@ async function init(){
 }
 init();
 
-// Formation sel init
+// ── Global stubs so lobby buttons work immediately before Firebase loads ──
+window.goSolo = function() {
+  document.getElementById('roomLobby').style.display = 'none';
+  const pill = document.getElementById('roomPill');
+  if (pill) { pill.textContent = 'SOLO'; pill.className = 'room-pill solo-pill'; }
+};
+window.createRoom = function() { alert('Still connecting to Firebase. Please wait a moment and try again.'); };
+window.joinRoom   = function() { alert('Still connecting to Firebase. Please wait a moment and try again.'); };
+window.showRoomInfo = function() {};
+
+
 Object.keys(FORMATIONS).forEach(f=>{});  // triggers on renderFormation
 
 // Service Worker
