@@ -2831,11 +2831,13 @@ window.createRoom = async function() {
   const code = document.getElementById('lobbyNewCode').textContent;
   setSyncBar('syncing');
   try {
+    var initialUsers = {};
+    initialUsers[localUserId] = Date.now();
     await db.collection('rooms').doc(code).set({
       created: Date.now(),
       state: buildSyncState(),
       _lastWriter: localUserId,
-      users: { [localUserId]: Date.now() }
+      users: initialUsers
     });
     enterRoom(code);
   } catch(e) {
@@ -2904,7 +2906,9 @@ function enterRoom(code) {
   // Heartbeat
   setInterval(() => {
     if (roomCode) db.collection('rooms').doc(roomCode)
-      .update({ [`users.${localUserId}`]: Date.now() }).catch(()=>{});
+      const heartbeatUpdate = {};
+      heartbeatUpdate['users.' + localUserId] = Date.now();
+      db.collection('rooms').doc(roomCode).update(heartbeatUpdate).catch(function(){});
   }, 15000);
 }
 
@@ -2934,15 +2938,13 @@ function pushSync() {
   if (isSolo || !roomCode || isApplyingRemote) return;
   clearTimeout(syncDebounce);
   setSyncBar('syncing');
-  syncDebounce = setTimeout(async () => {
+  syncDebounce = setTimeout(async function() {
     try {
-      await db.collection('rooms').doc(roomCode).update({
-        state: buildSyncState(),
-        _lastWriter: localUserId,
-        [`users.${localUserId}`]: Date.now()
-      });
+      var syncUpdate = { state: buildSyncState(), _lastWriter: localUserId };
+      syncUpdate['users.' + localUserId] = Date.now();
+      await db.collection('rooms').doc(roomCode).update(syncUpdate);
       setSyncBar('synced');
-      setTimeout(() => setSyncBar(''), 1000);
+      setTimeout(function() { setSyncBar(''); }, 1000);
     } catch(e) {
       setSyncBar('offline');
       document.getElementById('roomPill').className = 'room-pill offline-pill';
