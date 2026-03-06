@@ -2790,8 +2790,8 @@ function renderAnalysisResult(result, tab) {
 // ═══════════════════════════════════════════════
 // FIREBASE — MULTI-USER SYNC
 // ═══════════════════════════════════════════════
-// FIREBASE — MULTI-USER SYNC
-// ═══════════════════════════════════════════════
+
+document.addEventListener('DOMContentLoaded', function() {
 
 const firebaseConfig = {
   apiKey: "AIzaSyBASkHgH_sx9wdbpWQCpAkKaEoEcNt17Cw",
@@ -3066,6 +3066,8 @@ window.updateScoreboard = function() { _origUpdateScoreboard(); if (!isApplyingR
 
 // Possession: push every 5s while holding
 setInterval(() => { if (!isSolo && roomCode && (typeof possHolding !== 'undefined') && possHolding !== null) pushSync(); }, 5000);
+
+}); // end DOMContentLoaded
 
 </script>
 </body>
