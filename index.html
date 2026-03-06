@@ -1868,7 +1868,7 @@ async function renderSeason(){
   const el=document.getElementById('seasonContent');
   el.innerHTML='<div style="color:var(--text-dim);padding:20px;text-align:center;font-family:\'Barlow Condensed\',sans-serif;letter-spacing:1px">Loading...</div>';
   let history=[];
-  try{const r=await window.storage.get('match-history');if(r)history=JSON.parse(r.value);}catch(e){}
+  try{const r=const _mh=localStorage.getItem('match-history');if(_mh)history=JSON.parse(_mh);}catch(e){}
   const matches=history.filter(m=>m.level===seasonLevel);
   if(!matches.length){el.innerHTML='<div style="color:var(--text-dim);padding:30px;text-align:center;font-family:\'Barlow Condensed\',sans-serif;letter-spacing:1px;line-height:2">No '+seasonLevel.toUpperCase()+' matches saved yet.<br>Play and save some matches to see your season stats!</div>';return;}
 
@@ -2058,9 +2058,9 @@ async function saveMatch(){
   };
   try{
     let history=[];
-    try{const r=await window.storage.get('match-history');if(r)history=JSON.parse(r.value);}catch(e){}
+    try{const r=const _mh=localStorage.getItem('match-history');if(_mh)history=JSON.parse(_mh);}catch(e){}
     history.unshift(match);
-    await window.storage.set('match-history',JSON.stringify(history));
+    localStorage.setItem('match-history',JSON.stringify(history));
     showToast('✅ Match saved!');
   }catch(err){showToast('❌ Save failed');console.error(err);}
 }
@@ -2098,7 +2098,7 @@ async function renderHistory(){
   const list=document.getElementById('historyList');
   list.innerHTML='<div style="color:var(--text-dim);padding:20px;text-align:center;font-family:\'Barlow Condensed\',sans-serif;letter-spacing:1px">Loading...</div>';
   let history=[];
-  try{const r=await window.storage.get('match-history');if(r)history=JSON.parse(r.value);}catch(e){}
+  try{const r=const _mh=localStorage.getItem('match-history');if(_mh)history=JSON.parse(_mh);}catch(e){}
   document.getElementById('matchCount').textContent=history.length?history.length+' match'+(history.length!==1?'es':''):'';
   if(!history.length){list.innerHTML='<div style="color:var(--text-dim);padding:40px;text-align:center;font-family:\'Barlow Condensed\',sans-serif;letter-spacing:1px;line-height:2">No saved matches yet.<br>Track a match and tap 💾 Save.</div>';return;}
   list.innerHTML='';
@@ -2176,13 +2176,13 @@ function miniMapSVG(dots){
 
 async function deleteMatch(id){
   if(!confirm('Delete this match?'))return;
-  try{const r=await window.storage.get('match-history');let h=r?JSON.parse(r.value):[];h=h.filter(m=>m.id!==id);await window.storage.set('match-history',JSON.stringify(h));showToast('🗑 Deleted');renderHistory();}
+  try{const _h=localStorage.getItem('match-history');let h=_h?JSON.parse(_h):[];h=h.filter(m=>m.id!==id);localStorage.setItem('match-history',JSON.stringify(h));showToast('🗑 Deleted');renderHistory();}
   catch(e){showToast('❌ Error');}
 }
 async function loadMatch(idx){
   if(!confirm('Load this match? Current stats will be replaced.'))return;
   try{
-    const r=await window.storage.get('match-history');const history=r?JSON.parse(r.value):[];const m=history[idx];if(!m)return;
+    const _lm=localStorage.getItem('match-history');const history=_lm?JSON.parse(_lm):[];const m=history[idx];if(!m)return;
     document.getElementById('homeName').value=m.home.name;document.getElementById('awayName').value=m.away.name;
     document.getElementById('scoreHome').textContent=m.home.score;document.getElementById('scoreAway').textContent=m.away.score;
     counts.home={shots:m.home.shots,corners:m.home.corners,fifties:m.home.fifties,fouls:m.home.fouls};
@@ -2453,10 +2453,10 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
-async function saveRosters(){try{await window.storage.set('rosters',JSON.stringify(rosters));}catch(e){}}
-async function loadRosters(){try{const r=await window.storage.get('rosters');if(r){const d=JSON.parse(r.value);if(d.jv)rosters.jv=d.jv;if(d.var)rosters.var=d.var;}}catch(e){}}
-async function saveLineups(){try{await window.storage.set('lineups',JSON.stringify(lineups));}catch(e){}}
-async function loadLineups(){try{const r=await window.storage.get('lineups');if(r){const d=JSON.parse(r.value);if(d.jv)lineups.jv=d.jv;if(d.var)lineups.var=d.var;}}catch(e){}}
+async function saveRosters(){try{localStorage.setItem('rosters',JSON.stringify(rosters));}catch(e){}}
+async function loadRosters(){try{const d=localStorage.getItem('rosters');if(d){const p=JSON.parse(d);if(p.jv)rosters.jv=p.jv;if(p.var)rosters.var=p.var;}}catch(e){}}
+async function saveLineups(){try{localStorage.setItem('lineups',JSON.stringify(lineups));}catch(e){}}
+async function loadLineups(){try{const d=localStorage.getItem('lineups');if(d){const p=JSON.parse(d);if(p.jv)lineups.jv=p.jv;if(p.var)lineups.var=p.var;}}catch(e){}}
 
 // TOAST
 let toastTimer;
@@ -2657,8 +2657,8 @@ async function runAnalysis(tab) {
   // Load history if needed
   if (analysisCurrentMatch !== null && !window._analysisHistory) {
     try {
-      const r = await window.storage.get('match-history');
-      window._analysisHistory = r ? JSON.parse(r.value) : [];
+      const _ah = localStorage.getItem('match-history');
+      window._analysisHistory = _ah ? JSON.parse(_ah) : [];
     } catch(e) { window._analysisHistory = []; }
   }
 
