@@ -2791,128 +2791,145 @@ function renderAnalysisResult(result, tab) {
 // FIREBASE — MULTI-USER SYNC
 // ═══════════════════════════════════════════════
 
-document.addEventListener('DOMContentLoaded', function() {
+// ═══════════════════════════════════════════════
+// FIREBASE — MULTI-USER SYNC
+// ═══════════════════════════════════════════════
 
-const firebaseConfig = {
-  apiKey: "AIzaSyBASkHgH_sx9wdbpWQCpAkKaEoEcNt17Cw",
-  authDomain: "match-tracker-f9427.firebaseapp.com",
-  projectId: "match-tracker-f9427",
-  storageBucket: "match-tracker-f9427.firebasestorage.app",
-  messagingSenderId: "383820887927",
-  appId: "1:383820887927:web:57247bf7a13445e10b1372",
-  measurementId: "G-JYLJ05DB3S"
-};
+var db = null;
+var roomCode = null;
+var isSolo = false;
+var syncUnsubscribe = null;
+var localUserId = 'u' + Math.random().toString(36).slice(2, 8);
+var syncDebounce = null;
+var isApplyingRemote = false;
 
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+try {
+  var firebaseConfig = {
+    apiKey: "AIzaSyBASkHgH_sx9wdbpWQCpAkKaEoEcNt17Cw",
+    authDomain: "match-tracker-f9427.firebaseapp.com",
+    projectId: "match-tracker-f9427",
+    storageBucket: "match-tracker-f9427.firebasestorage.app",
+    messagingSenderId: "383820887927",
+    appId: "1:383820887927:web:57247bf7a13445e10b1372"
+  };
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.firestore();
+} catch(e) {
+  console.error('Firebase init failed:', e);
+}
 
-let roomCode = null;
-let isSolo = false;
-let syncUnsubscribe = null;
-let localUserId = 'u' + Math.random().toString(36).slice(2, 8);
-let syncDebounce = null;
-let isApplyingRemote = false;
-
-// ── Generate a random 4-char code ──
 function genCode() {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  return Array.from({length:4}, () => chars[Math.floor(Math.random()*chars.length)]).join('');
+  var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  var code = '';
+  for (var i = 0; i < 4; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
 }
 
-// ── Show a fresh code on lobby load ──
 function refreshLobbyCode() {
-  document.getElementById('lobbyNewCode').textContent = genCode();
+  var el = document.getElementById('lobbyNewCode');
+  if (el) el.textContent = genCode();
 }
-refreshLobbyCode();
-document.getElementById('lobbyNewCode').addEventListener('click', refreshLobbyCode);
 
-// ── Create a new room ──
-window.createRoom = async function() {
-  const code = document.getElementById('lobbyNewCode').textContent;
+// Run refreshLobbyCode as soon as DOM is ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', function() {
+    refreshLobbyCode();
+    var el = document.getElementById('lobbyNewCode');
+    if (el) el.addEventListener('click', refreshLobbyCode);
+  });
+} else {
+  refreshLobbyCode();
+  var el = document.getElementById('lobbyNewCode');
+  if (el) el.addEventListener('click', refreshLobbyCode);
+}
+
+function setSyncBar(state) {
+  var bar = document.getElementById('syncBar');
+  if (bar) bar.className = 'sync-bar' + (state ? ' ' + state : '');
+}
+
+window.createRoom = function() {
+  if (!db) { alert('Firebase not connected. Please check your internet and reload.'); return; }
+  var code = document.getElementById('lobbyNewCode').textContent.trim();
+  if (!code || code === '----') { refreshLobbyCode(); code = document.getElementById('lobbyNewCode').textContent.trim(); }
   setSyncBar('syncing');
-  try {
-    var initialUsers = {};
-    initialUsers[localUserId] = Date.now();
-    await db.collection('rooms').doc(code).set({
-      created: Date.now(),
-      state: buildSyncState(),
-      _lastWriter: localUserId,
-      users: initialUsers
-    });
+  var initialUsers = {};
+  initialUsers[localUserId] = Date.now();
+  db.collection('rooms').doc(code).set({
+    created: Date.now(),
+    state: buildSyncState(),
+    _lastWriter: localUserId,
+    users: initialUsers
+  }).then(function() {
     enterRoom(code);
-  } catch(e) {
-    alert('Could not create room. Check your internet connection.\n\n' + e.message);
+  }).catch(function(e) {
+    alert('Could not create room.\n\n' + e.message);
     setSyncBar('offline');
-  }
+  });
 };
 
-// ── Join an existing room ──
-window.joinRoom = async function() {
-  const code = document.getElementById('joinCodeInput').value.trim().toUpperCase();
+window.joinRoom = function() {
+  if (!db) { alert('Firebase not connected. Please check your internet and reload.'); return; }
+  var code = document.getElementById('joinCodeInput').value.trim().toUpperCase();
   if (code.length !== 4) { alert('Enter a 4-character room code.'); return; }
   setSyncBar('syncing');
-  try {
-    const snap = await db.collection('rooms').doc(code).get();
+  db.collection('rooms').doc(code).get().then(function(snap) {
     if (!snap.exists) { alert('Room "' + code + '" not found. Check the code and try again.'); setSyncBar('offline'); return; }
     applyRemoteState(snap.data().state);
     enterRoom(code);
-  } catch(e) {
+  }).catch(function(e) {
     alert('Could not join room.\n\n' + e.message);
     setSyncBar('offline');
-  }
+  });
 };
 
-// ── Solo mode ──
 window.goSolo = function() {
   isSolo = true;
   roomCode = null;
   document.getElementById('roomLobby').style.display = 'none';
-  document.getElementById('roomPill').textContent = 'SOLO';
-  document.getElementById('roomPill').className = 'room-pill solo-pill';
+  var pill = document.getElementById('roomPill');
+  if (pill) { pill.textContent = 'SOLO'; pill.className = 'room-pill solo-pill'; }
   setSyncBar('');
 };
 
-// ── Enter a room and subscribe ──
 function enterRoom(code) {
   roomCode = code;
   isSolo = false;
   document.getElementById('roomLobby').style.display = 'none';
-  document.getElementById('roomPill').textContent = '📡 ' + code;
-  document.getElementById('roomPill').className = 'room-pill';
+  var pill = document.getElementById('roomPill');
+  if (pill) { pill.textContent = '📡 ' + code; pill.className = 'room-pill'; }
   setSyncBar('synced');
-  setTimeout(() => setSyncBar(''), 1500);
+  setTimeout(function() { setSyncBar(''); }, 1500);
 
   if (syncUnsubscribe) syncUnsubscribe();
   syncUnsubscribe = db.collection('rooms').doc(code)
-    .onSnapshot(snap => {
+    .onSnapshot(function(snap) {
       if (!snap.exists) return;
-      const data = snap.data();
+      var data = snap.data();
       if (data._lastWriter && data._lastWriter !== localUserId) {
         isApplyingRemote = true;
         applyRemoteState(data.state);
         isApplyingRemote = false;
         setSyncBar('synced');
-        setTimeout(() => setSyncBar(''), 800);
+        setTimeout(function() { setSyncBar(''); }, 800);
       }
-      const users = data.users || {};
-      const active = Object.values(users).filter(t => Date.now() - t < 30000).length;
-      document.getElementById('roomPill').textContent = '📡 ' + code + (active > 1 ? '  👥' + active : '');
-    }, err => {
+      var users = data.users || {};
+      var active = Object.keys(users).filter(function(k) { return Date.now() - users[k] < 30000; }).length;
+      if (pill) pill.textContent = '📡 ' + code + (active > 1 ? '  👥' + active : '');
+    }, function(err) {
       setSyncBar('offline');
-      document.getElementById('roomPill').className = 'room-pill offline-pill';
-      document.getElementById('roomPill').textContent = '⚡ OFFLINE';
+      if (pill) { pill.className = 'room-pill offline-pill'; pill.textContent = '⚡ OFFLINE'; }
     });
 
-  // Heartbeat
-  setInterval(() => {
-    if (roomCode) db.collection('rooms').doc(roomCode)
-      const heartbeatUpdate = {};
-      heartbeatUpdate['users.' + localUserId] = Date.now();
-      db.collection('rooms').doc(roomCode).update(heartbeatUpdate).catch(function(){});
+  setInterval(function() {
+    if (roomCode && db) {
+      var hb = {};
+      hb['users.' + localUserId] = Date.now();
+      db.collection('rooms').doc(roomCode).update(hb).catch(function(){});
+    }
   }, 15000);
 }
 
-// ── Build full state snapshot ──
 function buildSyncState() {
   return {
     homeName: document.getElementById('homeName').value,
@@ -2921,9 +2938,9 @@ function buildSyncState() {
     scoreAway: parseInt(document.getElementById('scoreAway').textContent) || 0,
     counts: JSON.parse(JSON.stringify(counts)),
     halfStats: JSON.parse(JSON.stringify(halfStats)),
-    currentHalf,
-    seconds,
-    secondsH2,
+    currentHalf: currentHalf,
+    seconds: seconds,
+    secondsH2: secondsH2,
     possSeconds: JSON.parse(JSON.stringify(possSeconds)),
     shots: JSON.parse(JSON.stringify(shots)),
     cardLog: JSON.parse(JSON.stringify(cardLog)),
@@ -2933,27 +2950,24 @@ function buildSyncState() {
   };
 }
 
-// ── Push local state to Firestore (debounced 600ms) ──
 function pushSync() {
-  if (isSolo || !roomCode || isApplyingRemote) return;
+  if (isSolo || !roomCode || isApplyingRemote || !db) return;
   clearTimeout(syncDebounce);
   setSyncBar('syncing');
-  syncDebounce = setTimeout(async function() {
-    try {
-      var syncUpdate = { state: buildSyncState(), _lastWriter: localUserId };
-      syncUpdate['users.' + localUserId] = Date.now();
-      await db.collection('rooms').doc(roomCode).update(syncUpdate);
+  syncDebounce = setTimeout(function() {
+    var syncUpdate = { state: buildSyncState(), _lastWriter: localUserId };
+    syncUpdate['users.' + localUserId] = Date.now();
+    db.collection('rooms').doc(roomCode).update(syncUpdate).then(function() {
       setSyncBar('synced');
       setTimeout(function() { setSyncBar(''); }, 1000);
     } catch(e) {
       setSyncBar('offline');
-      document.getElementById('roomPill').className = 'room-pill offline-pill';
-      document.getElementById('roomPill').textContent = '⚡ OFFLINE';
+      var pill = document.getElementById('roomPill');
+      if (pill) { pill.className = 'room-pill offline-pill'; pill.textContent = '⚡ OFFLINE'; }
     }
   }, 600);
 }
 
-// ── Apply remote state to local UI ──
 function applyRemoteState(s) {
   if (!s) return;
   if (s.homeName !== undefined) document.getElementById('homeName').value = s.homeName;
@@ -2976,7 +2990,7 @@ function applyRemoteState(s) {
   }
   if (s.seconds !== undefined) {
     seconds = s.seconds;
-    const t = pad(Math.floor(seconds/60))+':'+pad(seconds%60);
+    var t = pad(Math.floor(seconds/60))+':'+pad(seconds%60);
     document.getElementById('matchTime').textContent = t;
     document.getElementById('matchTime2').textContent = t;
   }
@@ -2985,16 +2999,15 @@ function applyRemoteState(s) {
     timeElH2.textContent = pad(Math.floor(secondsH2/60))+':'+pad(secondsH2%60);
   }
   if (s.possSeconds) Object.assign(possSeconds, s.possSeconds);
-  if (s.shots) { shots = s.shots; shotId = shots.length ? Math.max(...shots.map(x=>x.id||0))+1 : 0; renderShotLayer(); }
+  if (s.shots) { shots = s.shots; shotId = shots.length ? Math.max.apply(null, shots.map(function(x){return x.id||0;})) + 1 : 0; renderShotLayer(); }
   if (s.cardLog) { cardLog = s.cardLog; renderCardLists(); }
   if (s.subLog) { subLog = s.subLog; renderSubLog(); }
   if (s.matchPlayers) Object.assign(matchPlayers, s.matchPlayers);
-
   syncNames();
   updateScoreboard();
-  STATS.forEach(st => {
-    const hEl = document.getElementById('h-'+st.key);
-    const aEl = document.getElementById('a-'+st.key);
+  STATS.forEach(function(st) {
+    var hEl = document.getElementById('h-'+st.key);
+    var aEl = document.getElementById('a-'+st.key);
     if (hEl) hEl.textContent = counts.home[st.key];
     if (aEl) aEl.textContent = counts.away[st.key];
     updateBar(st.key);
@@ -3004,35 +3017,28 @@ function applyRemoteState(s) {
   updateStatusBar();
 }
 
-// ── Render helpers ──
 function renderShotLayer() {
-  const layer = document.getElementById('shotLayer');
-  const log = document.getElementById('shotLog');
+  var layer = document.getElementById('shotLayer');
+  var log = document.getElementById('shotLog');
   if (!layer || !log) return;
   layer.innerHTML = '';
   log.innerHTML = '';
-  shots.forEach(s => {
+  shots.forEach(function(s) {
     renderDot(s.id, s.team, s.type, s.x, s.y, 'shotLayer');
     addShotEntry(s.id, s.team, s.type, s.zone);
   });
 }
+
 function renderCardLists() {
-  const yel = document.getElementById('yellowCardList');
-  const red = document.getElementById('redCardList');
+  var yel = document.getElementById('yellowCardList');
+  var red = document.getElementById('redCardList');
   if (!yel || !red) return;
-  const yellows = cardLog.filter(c=>c.type==='yellow');
-  const reds = cardLog.filter(c=>c.type==='red');
-  yel.innerHTML = yellows.length ? yellows.map(c=>`<div class="card-issued-item"><span class="card-pip y"></span><span class="card-issued-name">${esc(c.playerName||'—')}</span><span class="card-issued-min">${c.minute}'</span></div>`).join('') : '<span style="color:var(--text-dim);font-size:.72rem;font-family:\'Barlow Condensed\',sans-serif">None issued</span>';
-  red.innerHTML = reds.length ? reds.map(c=>`<div class="card-issued-item"><span class="card-pip r"></span><span class="card-issued-name">${esc(c.playerName||'—')}</span><span class="card-issued-min">${c.minute}'</span></div>`).join('') : '<span style="color:var(--text-dim);font-size:.72rem;font-family:\'Barlow Condensed\',sans-serif">None issued</span>';
+  var yellows = cardLog.filter(function(c){return c.type==='yellow';});
+  var reds = cardLog.filter(function(c){return c.type==='red';});
+  yel.innerHTML = yellows.length ? yellows.map(function(c){return '<div class="card-issued-item"><span class="card-pip y"></span><span class="card-issued-name">'+esc(c.playerName||'—')+'</span><span class="card-issued-min">'+c.minute+"'</span></div>";}).join('') : '<span style="color:var(--text-dim);font-size:.72rem;font-family:\'Barlow Condensed\',sans-serif">None issued</span>';
+  red.innerHTML = reds.length ? reds.map(function(c){return '<div class="card-issued-item"><span class="card-pip r"></span><span class="card-issued-name">'+esc(c.playerName||'—')+'</span><span class="card-issued-min">'+c.minute+"'</span></div>";}).join('') : '<span style="color:var(--text-dim);font-size:.72rem;font-family:\'Barlow Condensed\',sans-serif">None issued</span>';
 }
 
-// ── Sync bar visual ──
-function setSyncBar(state) {
-  const bar = document.getElementById('syncBar');
-  bar.className = 'sync-bar' + (state ? ' '+state : '');
-}
-
-// ── Room info tap ──
 window.showRoomInfo = function() {
   if (isSolo || !roomCode) {
     if (confirm('You are in solo mode. Go back to room lobby?')) {
@@ -3042,35 +3048,33 @@ window.showRoomInfo = function() {
     return;
   }
   if (confirm('Room Code: ' + roomCode + '\n\nShare this with your team.\nTap OK to copy.')) {
-    navigator.clipboard?.writeText(roomCode).catch(()=>{});
+    if (navigator.clipboard) navigator.clipboard.writeText(roomCode).catch(function(){});
     showToast('📋 Code ' + roomCode + ' copied!');
   }
 };
 
-// ── Patch mutation functions to push sync ──
-const _origChange = window.change;
-window.change = function(team, key, delta) {
-  _origChange(team, key, delta);
-  pushSync();
-};
+var _origChange = window.change;
+window.change = function(team, key, delta) { _origChange(team, key, delta); pushSync(); };
 
-const _origRemoveShot = window.removeShot;
+var _origRemoveShot = window.removeShot;
 window.removeShot = function(id) { _origRemoveShot(id); pushSync(); };
 
-const _origNextHalf = window.nextHalf;
+var _origNextHalf = window.nextHalf;
 window.nextHalf = function() { _origNextHalf(); pushSync(); };
 
-const _origSyncNames = window.syncNames;
+var _origSyncNames = window.syncNames;
 window.syncNames = function() { _origSyncNames(); if (!isApplyingRemote) pushSync(); };
 
-const _origUpdateScoreboard = window.updateScoreboard;
+var _origUpdateScoreboard = window.updateScoreboard;
 window.updateScoreboard = function() { _origUpdateScoreboard(); if (!isApplyingRemote) pushSync(); };
 
-// Possession: push every 5s while holding
-setInterval(() => { if (!isSolo && roomCode && (typeof possHolding !== 'undefined') && possHolding !== null) pushSync(); }, 5000);
+setInterval(function() { if (!isSolo && roomCode && (typeof possHolding !== 'undefined') && possHolding !== null) pushSync(); }, 5000);
 
-}); // end DOMContentLoaded
+
+
+
 
 </script>
 </body>
 </html>
+
