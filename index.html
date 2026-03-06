@@ -1868,7 +1868,7 @@ async function renderSeason(){
   const el=document.getElementById('seasonContent');
   el.innerHTML='<div style="color:var(--text-dim);padding:20px;text-align:center;font-family:\'Barlow Condensed\',sans-serif;letter-spacing:1px">Loading...</div>';
   let history=[];
-  try{const r=const _mh=localStorage.getItem('match-history');if(_mh)history=JSON.parse(_mh);}catch(e){}
+  try{const _mh=localStorage.getItem('match-history');if(_mh)history=JSON.parse(_mh);}catch(e){}
   const matches=history.filter(m=>m.level===seasonLevel);
   if(!matches.length){el.innerHTML='<div style="color:var(--text-dim);padding:30px;text-align:center;font-family:\'Barlow Condensed\',sans-serif;letter-spacing:1px;line-height:2">No '+seasonLevel.toUpperCase()+' matches saved yet.<br>Play and save some matches to see your season stats!</div>';return;}
 
@@ -2058,7 +2058,7 @@ async function saveMatch(){
   };
   try{
     let history=[];
-    try{const r=const _mh=localStorage.getItem('match-history');if(_mh)history=JSON.parse(_mh);}catch(e){}
+    try{const _mh=localStorage.getItem('match-history');if(_mh)history=JSON.parse(_mh);}catch(e){}
     history.unshift(match);
     localStorage.setItem('match-history',JSON.stringify(history));
     showToast('✅ Match saved!');
@@ -2098,7 +2098,7 @@ async function renderHistory(){
   const list=document.getElementById('historyList');
   list.innerHTML='<div style="color:var(--text-dim);padding:20px;text-align:center;font-family:\'Barlow Condensed\',sans-serif;letter-spacing:1px">Loading...</div>';
   let history=[];
-  try{const r=const _mh=localStorage.getItem('match-history');if(_mh)history=JSON.parse(_mh);}catch(e){}
+  try{const _mh=localStorage.getItem('match-history');if(_mh)history=JSON.parse(_mh);}catch(e){}
   document.getElementById('matchCount').textContent=history.length?history.length+' match'+(history.length!==1?'es':''):'';
   if(!history.length){list.innerHTML='<div style="color:var(--text-dim);padding:40px;text-align:center;font-family:\'Barlow Condensed\',sans-serif;letter-spacing:1px;line-height:2">No saved matches yet.<br>Track a match and tap 💾 Save.</div>';return;}
   list.innerHTML='';
@@ -2962,11 +2962,11 @@ function pushSync() {
     db.collection('rooms').doc(roomCode).update(syncUpdate).then(function() {
       setSyncBar('synced');
       setTimeout(function() { setSyncBar(''); }, 1000);
-    } catch(e) {
+    }).catch(function(e) {
       setSyncBar('offline');
       var pill = document.getElementById('roomPill');
       if (pill) { pill.className = 'room-pill offline-pill'; pill.textContent = '⚡ OFFLINE'; }
-    }
+    });
   }, 600);
 }
 
