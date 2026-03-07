@@ -456,6 +456,17 @@ svg.mini-field{width:100%;border-radius:8px;display:block}
 .modal-actions{display:flex;gap:7px;margin-top:13px}
 
 /* POSSESSION TRACKER */
+.goal-btns{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:6px}
+.goal-btn{width:34px;height:34px;border-radius:50%;border:none;font-size:1.3rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .1s,opacity .1s}
+.goal-btn:active{transform:scale(.88)}
+.goal-plus.h{background:rgba(0,188,212,.25);color:#67e8f9;border:2px solid rgba(0,188,212,.5)}
+.goal-plus.a{background:rgba(251,191,36,.3);color:#fde68a;border:2px solid rgba(251,191,36,.6)}
+.goal-minus{background:rgba(255,255,255,.08);color:var(--text-dim);border:2px solid rgba(255,255,255,.15);font-size:1rem}
+.goal-lbl{font-family:'Barlow Condensed',sans-serif;font-size:.65rem;font-weight:700;letter-spacing:1.5px;color:var(--text-dim)}
+.poss-btn.dead-ball{background:rgba(255,255,255,.08);color:var(--text-dim);border:1px solid rgba(255,255,255,.15);flex:1}
+.poss-btn.dead-ball.active{background:rgba(239,68,68,.2);color:#fca5a5;border-color:rgba(239,68,68,.5)}
+.field-flipped{transform:rotate(180deg)}
+.field-flipped text{transform:rotate(180deg)}
 .poss-card{background:linear-gradient(145deg,var(--surface),var(--bg2));border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:12px;position:relative;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.4)}
 .poss-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--home),var(--away))}
 .poss-lbl{font-family:'Barlow Condensed',sans-serif;font-size:.68rem;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:var(--text-dim);margin-bottom:10px}
@@ -728,6 +739,11 @@ svg.mini-field{width:100%;border-radius:8px;display:block}
     <div class="sc-side">
       <div class="sc-name h" id="sbHomeName">HOME</div>
       <div class="sc-sub" id="sbHomeShots">0 shots</div>
+      <div class="goal-btns">
+        <button class="goal-btn goal-minus" onclick="adjustGoal('home',-1)">−</button>
+        <span class="goal-lbl">GOAL</span>
+        <button class="goal-btn goal-plus h" onclick="adjustGoal('home',1)">+</button>
+      </div>
     </div>
     <div style="text-align:center">
       <div style="display:flex;align-items:center;justify-content:center;gap:2px">
@@ -739,6 +755,11 @@ svg.mini-field{width:100%;border-radius:8px;display:block}
     <div class="sc-side">
       <div class="sc-name a" id="sbAwayName">AWAY</div>
       <div class="sc-sub" id="sbAwayShots">0 shots</div>
+      <div class="goal-btns">
+        <button class="goal-btn goal-minus" onclick="adjustGoal('away',-1)">−</button>
+        <span class="goal-lbl">GOAL</span>
+        <button class="goal-btn goal-plus a" onclick="adjustGoal('away',1)">+</button>
+      </div>
     </div>
   </div>
 
@@ -750,7 +771,7 @@ svg.mini-field{width:100%;border-radius:8px;display:block}
 
   <!-- Possession Tracker -->
   <div class="poss-card">
-    <div class="poss-lbl">⏱ Time of Possession — Hold to Track</div>
+    <div class="poss-lbl">⏱ Time of Possession — Tap to Track</div>
     <div class="poss-nums">
       <div><div class="poss-num h" id="possTimeHome">0:00</div><div class="poss-num-lbl" id="possNameHome">Home</div></div>
       <div style="text-align:center"><div style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;color:var(--text-dim);letter-spacing:1px">POSSESSION</div></div>
@@ -761,8 +782,9 @@ svg.mini-field{width:100%;border-radius:8px;display:block}
       <div class="poss-bar-away" id="possBarAway" style="width:50%"><span class="poss-pct" id="possPctAway">50%</span></div>
     </div>
     <div class="poss-btns">
-      <button class="poss-btn home-poss" id="possHomeBtn">HOLD — HOME BALL</button>
-      <button class="poss-btn away-poss" id="possAwayBtn">HOLD — AWAY BALL</button>
+      <button class="poss-btn home-poss" id="possHomeBtn" onclick="togglePoss('home')">HOME BALL</button>
+      <button class="poss-btn dead-ball" id="possDeadBtn" onclick="togglePoss('dead')">⛔ DEAD BALL</button>
+      <button class="poss-btn away-poss" id="possAwayBtn" onclick="togglePoss('away')">AWAY BALL</button>
     </div>
   </div>
 
@@ -804,7 +826,7 @@ svg.mini-field{width:100%;border-radius:8px;display:block}
       <button class="stype-btn" data-type="Blocked" onclick="setShotType(this)">BLOCKED</button>
       <button class="stype-btn" data-type="Goal" onclick="setShotType(this)">GOAL ⚽</button>
     </div>
-    <svg class="field" id="fieldSvg" viewBox="0 0 560 380" xmlns="http://www.w3.org/2000/svg" onclick="addShot(event)">
+    <svg class="field" id="fieldSvg" viewBox="0 0 560 380" xmlns="http://www.w3.org/2000/svg" style="max-height:240px" onclick="addShot(event)">
       <rect width="560" height="380" fill="#1a4a2e"/>
       <rect x="0" y="0" width="560" height="38" fill="#1e5534" opacity="0.5"/>
       <rect x="0" y="76" width="560" height="38" fill="#1e5534" opacity="0.5"/>
@@ -829,8 +851,8 @@ svg.mini-field{width:100%;border-radius:8px;display:block}
       <path d="M 530 20 A 10 10 0 0 1 540 30" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="1.5"/>
       <path d="M 20 350 A 10 10 0 0 0 30 360" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="1.5"/>
       <path d="M 540 350 A 10 10 0 0 1 530 360" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="1.5"/>
-      <text x="100" y="15" text-anchor="middle" fill="rgba(59,130,246,0.8)" font-family="'Barlow Condensed',sans-serif" font-size="11" font-weight="700" letter-spacing="1">HOME →</text>
-      <text x="460" y="15" text-anchor="middle" fill="rgba(239,68,68,0.8)" font-family="'Barlow Condensed',sans-serif" font-size="11" font-weight="700" letter-spacing="1">← AWAY</text>
+      <text x="100" y="15" text-anchor="middle" fill="rgba(0,188,212,0.9)" font-family="'Barlow Condensed',sans-serif" font-size="11" font-weight="700" letter-spacing="1" id="homeFieldLabel">HOME →</text>
+      <text x="460" y="15" text-anchor="middle" fill="rgba(251,191,36,0.9)" font-family="'Barlow Condensed',sans-serif" font-size="11" font-weight="700" letter-spacing="1" id="awayFieldLabel">← AWAY</text>
       <g id="shotLayer"></g>
     </svg>
     <div class="shot-log" id="shotLog"></div>
@@ -1106,7 +1128,7 @@ let halfStats = {
 
 let activeShootTeam = 'home', activeShotType = 'On Target';
 let shots = [], shotId = 0;
-let counts = { home:{shots:0,corners:0,fifties:0,fouls:0}, away:{shots:0,corners:0,fifties:0,fouls:0} };
+let counts = { home:{shots:0,corners:0,fifties:0,fouls:0,crosses:0,offsides:0}, away:{shots:0,corners:0,fifties:0,fouls:0,crosses:0,offsides:0} };
 let seconds = 0, secondsH2 = 0, timerRunning = false, timerInterval;
 
 // Possession tracking
@@ -1120,6 +1142,8 @@ const STATS = [
   {key:'corners', label:'Corner Kicks',   icon:'🚩'},
   {key:'fifties', label:'50/50 Balls Won',icon:'⚔️'},
   {key:'fouls',   label:'Fouls',          icon:'🟨'},
+  {key:'crosses', label:'Crosses (Final 3rd)', icon:'↗️'},
+  {key:'offsides',label:'Offsides',           icon:'🚫'},
 ];
 
 const FORMATIONS = {
@@ -1261,6 +1285,10 @@ function nextHalf() {
     timeElH2.style.display='';
     showToast('2nd Half started');
     updateHalfSplits();
+    // Flip field for 2nd half
+    document.getElementById('fieldSvg').classList.add('field-flipped');
+    document.getElementById('homeFieldLabel').textContent = '← HOME';
+    document.getElementById('awayFieldLabel').textContent = 'AWAY →';
   } else {
     if(!confirm('End match?')) return;
     clearInterval(timerInterval); timerRunning=false;
@@ -1346,6 +1374,16 @@ function updateBar(key) {
 // ═══════════════════════════════════════════════
 // NAMES / SCOREBOARD
 // ═══════════════════════════════════════════════
+window.adjustGoal = function(team, delta) {
+  var el = document.getElementById(team==='home'?'scoreHome':'scoreAway');
+  var val = parseInt(el.textContent)||0;
+  val = Math.max(0, val+delta);
+  el.textContent = val;
+  document.getElementById(team==='home'?'sbStatusScoreHome':'sbStatusScoreAway').textContent = val;
+  if(delta>0) showToast('⚽ GOAL! ' + (document.getElementById(team==='home'?'homeName':'awayName').value||team.toUpperCase()));
+  pushSync();
+};
+
 function syncNames() {
   const h=document.getElementById('homeName').value||'HOME';
   const a=document.getElementById('awayName').value||'AWAY';
@@ -1365,48 +1403,67 @@ function updateScoreboard() {
 }
 
 // ═══════════════════════════════════════════════
-// POSSESSION TRACKER
+// POSSESSION TRACKER — TAP TO TOGGLE
 // ═══════════════════════════════════════════════
 function initPossession() {
-  const homeBtn = document.getElementById('possHomeBtn');
-  const awayBtn = document.getElementById('possAwayBtn');
+  // Tap-to-toggle handled by onclick="togglePoss(team)" in HTML
+  if(!possInterval) possInterval = setInterval(updatePossDisplay, 500);
+}
 
-  function startHold(team) {
-    if(possHolding===team) return;
-    if(possHolding) stopHold(possHolding);
-    possHolding = team;
-    possHoldStart = Date.now();
-    document.getElementById('poss'+cap(team)+'Btn').classList.add('holding');
-    document.getElementById('poss'+cap(team)+'Btn').innerHTML = `<span class="poss-active-dot"></span> ${team.toUpperCase()} IN POSSESSION`;
-    if(!possInterval) possInterval = setInterval(updatePossDisplay, 500);
-    if(navigator.vibrate) navigator.vibrate(20);
-  }
-  function stopHold(team) {
-    if(!team || possHolding!==team) return;
-    if(possHoldStart) {
-      possSeconds[team] += (Date.now() - possHoldStart) / 1000;
-      possHoldStart = null;
-    }
-    possHolding = null;
-    clearInterval(possInterval); possInterval = null;
-    const btn = document.getElementById('poss'+cap(team)+'Btn');
-    btn.classList.remove('holding');
-    btn.textContent = 'HOLD — '+team.toUpperCase()+' BALL';
-    updatePossDisplay();
-  }
-  function cap(s){return s.charAt(0).toUpperCase()+s.slice(1)}
+window.togglePoss = function(team) {
+  var homeBtn = document.getElementById('possHomeBtn');
+  var awayBtn = document.getElementById('possAwayBtn');
+  var deadBtn = document.getElementById('possDeadBtn');
 
-  // Touch events (primary for mobile)
-  ['home','away'].forEach(team=>{
-    const btn = document.getElementById('poss'+cap(team)+'Btn');
-    btn.addEventListener('touchstart', e=>{e.preventDefault();startHold(team);},{passive:false});
-    btn.addEventListener('touchend',   e=>{e.preventDefault();stopHold(team); },{passive:false});
-    btn.addEventListener('touchcancel',e=>{e.preventDefault();stopHold(team); },{passive:false});
-    // Mouse fallback for desktop testing
-    btn.addEventListener('mousedown', ()=>startHold(team));
-    btn.addEventListener('mouseup',   ()=>stopHold(team));
-    btn.addEventListener('mouseleave',()=>{ if(possHolding===team) stopHold(team); });
-  });
+  // If tapping the already-active team, stop possession (dead ball)
+  if(possHolding === team) {
+    stopPoss();
+    return;
+  }
+
+  // Save elapsed time for previously active team
+  if(possHolding && possHolding !== 'dead' && possHoldStart) {
+    possSeconds[possHolding] += (Date.now() - possHoldStart) / 1000;
+  }
+
+  // Clear all active states
+  homeBtn.classList.remove('holding','active');
+  awayBtn.classList.remove('holding','active');
+  deadBtn.classList.remove('active');
+  homeBtn.innerHTML = '<span id="possHomeLbl">' + (document.getElementById('homeName').value||'HOME').slice(0,8).toUpperCase() + ' BALL</span>';
+  awayBtn.innerHTML = '<span id="possAwayLbl">' + (document.getElementById('awayName').value||'AWAY').slice(0,8).toUpperCase() + ' BALL</span>';
+  deadBtn.textContent = '⛔ DEAD BALL';
+
+  possHolding = team;
+  possHoldStart = Date.now();
+
+  if(team === 'dead') {
+    deadBtn.classList.add('active');
+    deadBtn.textContent = '⛔ DEAD BALL (active)';
+  } else if(team === 'home') {
+    homeBtn.classList.add('holding');
+    homeBtn.innerHTML = '<span class="poss-active-dot"></span> ' + (document.getElementById('homeName').value||'HOME').slice(0,8).toUpperCase() + ' IN POSSESSION';
+  } else {
+    awayBtn.classList.add('holding');
+    awayBtn.innerHTML = '<span class="poss-active-dot"></span> ' + (document.getElementById('awayName').value||'AWAY').slice(0,8).toUpperCase() + ' IN POSSESSION';
+  }
+  if(navigator.vibrate) navigator.vibrate(20);
+  updatePossDisplay();
+};
+
+function stopPoss() {
+  if(possHolding && possHolding !== 'dead' && possHoldStart) {
+    possSeconds[possHolding] += (Date.now() - possHoldStart) / 1000;
+  }
+  possHolding = null;
+  possHoldStart = null;
+  var homeBtn = document.getElementById('possHomeBtn');
+  var awayBtn = document.getElementById('possAwayBtn');
+  var deadBtn = document.getElementById('possDeadBtn');
+  if(homeBtn) { homeBtn.classList.remove('holding','active'); homeBtn.textContent = (document.getElementById('homeName').value||'HOME').slice(0,8).toUpperCase() + ' BALL'; }
+  if(awayBtn) { awayBtn.classList.remove('holding','active'); awayBtn.textContent = (document.getElementById('awayName').value||'AWAY').slice(0,8).toUpperCase() + ' BALL'; }
+  if(deadBtn) { deadBtn.classList.remove('active'); deadBtn.textContent = '⛔ DEAD BALL'; }
+  updatePossDisplay();
 }
 
 function updatePossDisplay() {
@@ -1437,8 +1494,8 @@ function syncPossNames() {
   const a = document.getElementById('awayName').value||'AWAY';
   document.getElementById('possNameHome').textContent = h.slice(0,10).toUpperCase();
   document.getElementById('possNameAway').textContent = a.slice(0,10).toUpperCase();
-  document.getElementById('possHomeBtn').textContent  = 'HOLD — '+h.slice(0,8).toUpperCase()+' BALL';
-  document.getElementById('possAwayBtn').textContent  = 'HOLD — '+a.slice(0,8).toUpperCase()+' BALL';
+  if(!possHolding||possHolding!=='home') document.getElementById('possHomeBtn').textContent = h.slice(0,8).toUpperCase()+' BALL';
+  if(!possHolding||possHolding!=='away') document.getElementById('possAwayBtn').textContent = a.slice(0,8).toUpperCase()+' BALL';
 }
 
 // ═══════════════════════════════════════════════
@@ -2161,7 +2218,7 @@ function buildMiniDots(sl){
   }).join('');
 }
 function miniMapSVG(dots){
-  return `<svg class="mini-field" viewBox="0 0 560 380" xmlns="http://www.w3.org/2000/svg">
+  return `<svg class="mini-field" viewBox="0 0 560 380" xmlns="http://www.w3.org/2000/svg" style="max-height:240px">
     <rect width="560" height="380" fill="#1a4a2e"/>
     <rect x="20" y="20" width="520" height="340" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2"/>
     <line x1="280" y1="20" x2="280" y2="360" stroke="rgba(255,255,255,0.4)" stroke-width="1.5"/>
